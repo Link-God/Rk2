@@ -13,6 +13,6 @@
 - [x] [Python](https://github.com/grantjenks/python-sortedcontainers/blob/master/sortedcontainers/sortedlist.py)
 
 ## Map
-- [0] [C++]()
+- [x] [C++]()
 - [x] [Java](https://github.com/capezzbr/HashMap) 
 - [x] [Python](https://github.com/grantjenks/python-sortedcontainers/blob/master/sortedcontainers/sorteddict.py)

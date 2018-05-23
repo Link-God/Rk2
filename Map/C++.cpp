@@ -1,439 +1,472 @@
-#pragma once
-#ifndef _RBMAP_
-#define _RBMAP_
-#include "./rbtree.h"
-
-namespace rbmap_project {
-
-	/* Template types for tree */
-template <
-	class key_type,
-	class mapped_type,
-	class comparator,
-	class allocator,
-	bool multi>
-	class rbTraits
-		: public std::_Container_base0
-	{
-	public:	
-		typedef std::pair<const key_type, mapped_type> value_type;
-		typedef comparator key_compare;
-		typedef typename allocator::template rebind<value_type>::other allocator_type;
-		typedef key_type key_type;
-
-		/* Map or multimap */
-		enum {multimap = multi};
-
-		/* Empty constructor */
-		rbTraits()
-			: comp()
-		{
-		}
-
-		/* Construct with comparator */
-		rbTraits(comparator compare)
-			: comp(compare)
-		{
-		}
-
-		/* Compare 2 values */
-		class value_compare
-			: public std::binary_function<value_type, value_type, bool>
-		{
-			friend class rbTraits<key_type, mapped_type, comparator, allocator, multi>;
-
-		public:
-			bool operator()(const value_type& left, const value_type& right) const
-			{
-				return (comp(left.first, right.first));
-			}
-
-			value_compare(key_compare compare)
-				: comp(compare)
-			{
-			}
-
-		protected:
-			/* Comparison functor */
-			key_compare comp;	
-		};
-
-		/* Get key of value */
-	template<class type1, class type2>
-		static const key_type& Key(const std::pair<type1, type2>& value)
-		{
-			return (value.first);
-		}
-
-		/* TODO Why not key_compare */
-		comparator comp;
-
-	};
-
-	/* Map */
-template<
-	class key_type,
-	class mapped_type,
-	class comparator = std::less<key_type>,
-	class allocator = std::allocator<std::pair<const key_type, mapped_type>>>
-	class rbmap
-		: public Tree<rbTraits<key_type, mapped_type, comparator, allocator, false>>
-	{	
-	public:
-		typedef rbmap<key_type, mapped_type, comparator, allocator> this_map;
-		typedef Tree<rbTraits<key_type, mapped_type, comparator, allocator, false>> base_tree;
-		typedef comparator key_compare;
-		typedef typename base_tree::value_compare value_compare;
-		typedef typename base_tree::allocator_type allocator_type;
-		typedef typename base_tree::size_type size_type;
-		typedef typename base_tree::difference_type difference_type;
-		typedef typename base_tree::pointer pointer;
-		typedef typename base_tree::const_pointer const_pointer;
-		typedef typename base_tree::reference reference;
-		typedef typename base_tree::const_reference const_reference;
-		typedef typename base_tree::iterator iterator;
-		typedef typename base_tree::const_iterator const_iterator;
-		typedef typename base_tree::reverse_iterator reverse_iterator;
-		typedef typename base_tree::const_reverse_iterator const_reverse_iterator;
-		typedef typename base_tree::value_type value_type;
-		typedef mapped_type mapped_type;
-
-		/* Empty constructor */
-		rbmap()
-			: base_tree(key_compare(), allocator_type())
-		{
-		}
-
-		/* Copying constructor */
-		rbmap(const this_map& right)
-			: base_tree(right)
-		{
-		}
-
-		/* Construct with comparator */
-		rbmap(const key_compare& compare)
-			: base_tree(compare, allocator_type())
-		{
-		}
-
-		/* Construct with comparator and allocator */
-		rbmap(const key_compare& compare, const allocator_type& allocator)
-			: base_tree(compare, allocator)
-		{
-		}
-
-		/* Construct with a set of iterators */
-	template<class iterator_class>
-		rbmap(iterator_class first, iterator_class last)
-				: base_tree(key_compare(), allocator_type())
-		{
-			this->insert(first, last);
-		}
-
-		template<class iterator_class>
-			rbmap(iterator_class first, iterator_class last, const key_compare& compare)
-				: base_tree(compare, allocator_type())
-		{
-			this->insert(first, last);
-		}
-
-		template<class iterator_class>
-			rbmap(iterator_class first, iterator_class last, const key_compare& compare, const allocator_type& allocator)
-				: base_tree(compare, allocator)
-		{
-			this->insert(first, last);
-		}
-
-		this_map& operator=(const this_map& right)
-		{
-			base_tree::operator=(right);
-			return (*this);
-		}
-
-		rbmap(this_map&& right)
-			: base_tree(move(right))
-		{
-		}
-
-		this_map& operator=(this_map&& right)
-		{
-			base_tree::operator=(move(right));
-			return (*this);
-		}
-
-		mapped_type& operator[](key_type&& key)
-		{
-			iterator place = this->lower_bound(key);
-			if (place == this->end() || comp(key, this->key(place.node())))
-				place = this->insert(place, std::pair<key_type, mapped_type>(key, mapped_type()));
-			return ((*place).second);
-		}
-
-		mapped_type& operator[](const key_type& key)
-		{
-			iterator place = this->lower_bound(key);
-			if (place == this->end() || comp(key, this->key(place.node())))
-				place = this->insert(place, value_type(key, mapped_type()));
-			return ((*place).second);
-		}
-
-		/*void erase(const_iterator place)
-		{
-			base_tree::erase(place);
-		}*/
-
-
-		iterator erase(const_iterator place)
-		{
-			return base_tree::erase(place);
-		}
-
-		size_type erase(const key_type& key)
-		{
-			return (base_tree::erase(key));
-		}
-
-		iterator erase(const_iterator first, const_iterator second)
-		{
-			return base_tree::erase(first, second);
-		}
-
-		mapped_type& at(const key_type& key)
-		{
-			iterator place = this->lower_bound(key);
-			if (place == this->end() || this->comp(key, this->key(place.node()))) {
-				std::_Xout_of_range("No such key");
-				//throw;
-			}
-			return ((*place).second);
-		}
-
-		const mapped_type& at(const key_type& key) const
-		{
-			const_iterator place = this->lower_bound(key);
-			if (place == this->end() || this->comp(key, this->key(place.node()))) {
-				std::_Xout_of_range("No such key");
-			}
-			return ((*place).second);
-		}
-
-		void swap(this_map& right)
-		{
-			base_tree::swap(right);
-		}
-
-		void swap(this_map&& right)
-		{
-			base_tree::swap(move(right));
-		}
-	};
-
-
-template<
-	class key_type,
-	class mapped_type,
-	class comparator,
-	class allocator>
-		inline void swap(rbmap<key_type, mapped_type, comparator, allocator>& left, rbmap<key_type, mapped_type, comparator, allocator>& right)
-	{
-		left.swap(right);
-	}
-
-template<
-	class key_type,
-	class mapped_type,
-	class comparator,
-	class allocator>
-		inline void swap(rbmap<key_type, mapped_type, comparator, allocator>& left, rbmap<key_type, mapped_type, comparator, allocator>&& right)
-	{
-		left.swap(forward<rbmap<key_type, mapped_type, comparator, allocator>>(right));
-	}
-
-template<
-	class key_type,
-	class mapped_type,
-	class comparator,
-	class allocator> 
-		inline void swap(rbmap<key_type, mapped_type, comparator, allocator>&& left, rbmap<key_type, mapped_type, comparator, allocator>& right)
-	{
-		right.swap(forward<rbmap<key_type, mapped_type, comparator, allocator>>(left));
-	}
-
-
-
-
-template<class key_type,
-	class mapped_type,
-	class comparator = std::less<key_type>,
-	class allocator = std::allocator<std::pair<const key_type, mapped_type>>>
-	class rbmultimap
-		: public Tree<rbTraits<key_type, mapped_type, comparator, allocator, true>>
-	{
-	public:
-		typedef rbmultimap<key_type, mapped_type, comparator, allocator> this_map;
-		typedef Tree<rbTraits<key_type, mapped_type, comparator, allocator, true>> base_tree;
-		typedef comparator key_compare;
-		typedef typename base_tree::value_compare value_compare;
-		typedef typename base_tree::allocator_type allocator_type;
-		typedef typename base_tree::size_type size_type;
-		typedef typename base_tree::difference_type difference_type;
-		typedef typename base_tree::pointer pointer;
-		typedef typename base_tree::const_pointer const_pointer;
-		typedef typename base_tree::reference reference;
-		typedef typename base_tree::const_reference const_reference;
-		typedef typename base_tree::iterator iterator;
-		typedef typename base_tree::const_iterator const_iterator;
-		typedef typename base_tree::reverse_iterator reverse_iterator;
-		typedef typename base_tree::const_reverse_iterator const_reverse_iterator;
-		typedef typename base_tree::value_type value_type;
-		typedef mapped_type mapped_type;
-
-		rbmultimap()
-			: base_tree(key_compare(), allocator_type())
-		{
-		}
-
-		rbmultimap(const this_map& right)
-			: base_tree(right)
-		{
-		}
-
-		rbmultimap(const key_compare& compare)
-			: base_tree(compare, allocator_type())
-		{
-		}
-
-		rbmultimap(const key_compare& compare, const allocator_type& allocator)
-			: base_tree(compare, allocator)
-		{
-		}
-
-		template<class iterator_class>
-			rbmultimap(iterator_class first, iterator_class last)
-				: base_tree(key_compare(), allocator_type())
-		{
-			this->insert(first, last);
-		}
-
-		template<class iterator_class>
-			rbmultimap(iterator_class first, iterator_class last, const key_compare& compare)
-				: base_tree(compare, allocator_type())
-		{
-			this->insert(first, last);
-		}
-
-		template<class iterator_class>
-			rbmultimap(iterator_class first, iterator_class last, const key_compare& compare, const allocator_type& allocator)
-				: base_tree(compare, allocator)
-		{
-			this->insert(first, last);
-		}
-
-		this_map& operator=(const this_map& right)
-		{
-			base_tree::operator=(right);
-			return (*this);
-		}
-
-		rbmultimap(this_map&& right)
-			: base_tree(move(right))
-		{
-		}
-
-		this_map& operator=(this_map&& right)
-		{
-			base_tree::operator=(move(right));
-			return (*this);
-		}
-
-		template<class val_type> iterator insert(val_type&& value)
-		{
-			return (base_tree::insert(std::forward<val_type>(value)).first);
-		}
-
-		template<class val_type> iterator insert(const_iterator place, val_type&& value)
-		{
-			return (base_tree::insert(place, std::forward<val_type>(value)));
-		}
-
-		iterator insert(const value_type& value)
-		{
-			return (base_tree::insert(value).first);
-		}
-
-		iterator insert(const_iterator place, const value_type& value)
-		{
-			return (base_tree::insert(place, value));
-		}
-
-		template<class iterator_class> void insert(iterator_class first, iterator_class second)
-		{
-			for (iterator_class it = first; it != second; it++)
-				insert(*it);
-		}
-
-		/*void erase(const_iterator place)
-		{
-			base_tree::erase(place);
-		}*/
-
-		iterator erase(const_iterator place)
-		{
-			return base_tree::erase(place);
-		}
-
-		size_type erase(const key_type& key)
-		{
-			return (base_tree::erase(key));
-		}
-
-		iterator erase(const_iterator first, const_iterator second)
-		{
-			return base_tree::erase(first, second);
-		}
-
-		void swap(this_map& right)
-		{
-			base_tree::swap(right);
-		}
-
-		void swap(this_map&& right)
-		{
-			base_tree::swap(move(right));
-		}
-	};
-
-template<
-	class key_type,
-	class mapped_type,
-	class comparator,
-	class allocator>
-		inline void swap(rbmultimap<key_type, mapped_type, comparator, allocator>& left, rbmultimap<key_type, mapped_type, comparator, allocator>& right)
-	{
-		left.swap(right);
-	}
-
-template<
-	class key_type,
-	class mapped_type,
-	class comparator,
-	class allocator>
-		inline void swap(rbmultimap<key_type, mapped_type, comparator, allocator>& left, rbmultimap<key_type, mapped_type, comparator, allocator>&& right)
-	{
-		left.swap(forward<rbmultimap<key_type, mapped_type, comparator, allocator>>(right));
-	}
-
-template<
-	class key_type,
-	class mapped_type,
-	class comparator,
-	class allocator> 
-		inline void swap(rbmultimap<key_type, mapped_type, comparator, allocator>&& left, rbmultimap<key_type, mapped_type, comparator, allocator>& right)
-	{
-		right.swap(forward<rbmultimap<key_type, mapped_type, comparator, allocator>>(left));
-	}
-
-}
-
-
-#endif
+#include <iostream>
+#include <stdexcept>
+
+template <class Key>
+struct Less
+{
+    bool operator()(Key a, Key b) const
+    {
+        return a < b;
+    }
+};
+
+template <class Key, class T, class Compare=Less<Key>>
+class map
+{
+private:
+
+    struct Node
+    {
+        Node* Parent;
+        Node* Left;
+        Node* Right;
+        std::pair<Key, T> Value;
+    };
+
+    Node * Root;
+
+    void Delete(Node* rhs)
+    {
+        if (rhs != nullptr) {
+            if (rhs->Left != nullptr) {
+                Delete(rhs->Left);
+            }
+            if (rhs->Right != nullptr) {
+                Delete(rhs->Right);
+            }
+            delete rhs;
+        }
+        return;
+    }
+
+    Node* Copy(Node* rhs)
+    {
+        Node* tmp = new Node;
+        if (rhs != nullptr) {
+            tmp->Parent = rhs->Parent;
+            tmp->Value.first = rhs->Value.first;
+            tmp->Value.second = rhs->Value.second;
+            if (rhs->Left != nullptr)
+                tmp->Left = Copy(rhs->Left);
+            if (rhs->Right != nullptr)
+                tmp->Right = Copy(rhs->Right);
+        }
+        return tmp;
+    }
+
+public:
+
+    struct Iterator
+            : public std::iterator<std::random_access_iterator_tag, std::pair<Key, T>>
+    {
+
+        Node * ptr;
+
+        explicit Iterator(Node* p)
+                : ptr(p)
+        { }
+
+        std::pair<Key, T>& operator*()
+        {
+            return ptr->Value;
+        }
+
+        std::pair<Key, T>* operator->()
+        {
+            std::pair<Key, T>* tmp = &(ptr->Value);
+            return tmp;
+        }
+
+        Iterator& operator++()
+        {
+            if (ptr->Right != nullptr) {
+                ptr = ptr->Right;
+                while (ptr->Left != nullptr) {
+                    ptr = ptr->Left;
+                }
+                return *this;
+            } else {
+                while(ptr->Parent != nullptr) {
+                    if (ptr->Parent->Value.first > ptr->Value.first) {
+                        ptr = ptr->Parent;
+                        return *this;
+                    } else {
+                        if(ptr->Value.first == Key()){
+                            return *this;
+                        }
+                        ptr = ptr->Parent;
+                    }
+                }
+            }
+        }
+
+        Iterator operator++(int /*unused*/)
+        {
+            Iterator it(ptr);
+            ++*this;
+            return it;
+        }
+
+        Iterator& operator+=(size_t n)
+        {
+            for (size_t i = 0; i < n; ++i) {
+                ++ptr;
+            }
+            return *this;
+        }
+
+        Iterator& operator-=(size_t n)
+        {
+            for (size_t i = 0; i < n; ++i) {
+                --ptr;
+            }
+            return *this;
+        }
+
+        Iterator& operator--()
+        {
+            if (*this == end()) {
+                while(ptr->Right != nullptr)
+                    ptr =  ptr->Right;
+            }
+            if (ptr->Left != nullptr) {
+                ptr = ptr->Left;
+                while (ptr->Right != nullptr) {
+                    ptr = ptr->Right;
+                }
+                return *this;
+            } else {
+                while(ptr->Parent != nullptr) {
+                    if (ptr->Parent->Value.first > ptr->Value.first) {
+                        ptr = ptr->Parent;
+                    } else {
+                        ptr = ptr->Parent;
+                        return *this;
+                    }
+                }
+            }
+        }
+
+        Iterator operator--(int /*unused*/)
+        {
+            Iterator it(ptr);
+            --ptr;
+            return it;
+        }
+
+        bool operator==(Iterator it)
+        {
+            return (ptr->Value.first == it.ptr->Value.first)
+                   && (ptr->Value.second == it.ptr->Value.second);
+        }
+
+        bool operator<(Iterator it)
+        {
+            return ptr->Value.first < it.ptr->Value.first;
+        }
+
+        bool operator<=(Iterator it)
+        {
+            return this->operator==(it) || this->operator<(it);
+        }
+
+        bool operator>(Iterator it)
+        {
+            return !(this->operator==(it) || this->operator<(it));
+        }
+
+        bool operator>=(Iterator it)
+        {
+            return !this->operator<(it);
+        }
+
+        bool operator!=(Iterator it)
+        {
+            return !(this->operator==(it));
+        }
+    };
+
+    using value_type = T;
+    using size_type = size_t;
+    using difference_type = std::ptrdiff_t;
+    using reference = value_type&;
+    using const_reference = const value_type&;
+    using pointer = T*;
+    using const_pointer = const T*;
+    using iterator = Iterator;
+    using const_iterator = const Iterator;
+
+    map()
+    {
+        Root = new Node;
+        Root->Parent = new Node;
+        Root->Parent->Right = Root;
+        Root->Parent->Parent = nullptr;
+        Root->Parent->Left = nullptr;
+        Root->Parent->Value.first = Key();
+        Root->Parent->Value.second = T();
+        Root->Right = nullptr;
+        Root->Left = nullptr;
+        Root->Value.first = Key();
+        Root->Value.second = T();
+    }
+
+    ~map()
+    {
+        Delete(Root);
+    }
+
+    map(const map& rhs)
+    {
+        Root = Copy(rhs.Root);
+    }
+
+    map& operator=(const map& rhs)
+    {
+        if (this != &rhs) {
+            Delete(Root);
+            Root = Copy(rhs.Root);
+        }
+        return *this;
+    }
+
+    iterator begin()
+    {
+        Node* tmp = Root;
+        while (tmp->Left != nullptr) {
+            tmp = tmp->Left;
+        }
+        return Iterator(tmp);
+    }
+
+    const_iterator begin() const
+    {
+        Node* tmp = Root;
+        while (tmp->Left != nullptr) {
+            tmp = tmp->Left;
+        }
+        return const_iterator(tmp);
+    }
+
+    iterator end()
+    {
+        iterator it(Root->Parent);
+        return it;
+    }
+
+    const_iterator end() const
+    {
+        iterator it(Root->Parent);
+        return it;
+    }
+
+    size_type size() const
+    {
+        if ((Root->Left == nullptr) && (Root->Right == nullptr)
+                && (Root->Value.first == Key()) && (Root->Value.second == T())) {
+            return 0;
+        } else {
+            size_t length = 0;
+            for (iterator it = begin(); it != end(); ++it) {
+                ++length;
+            }
+            return length;
+        }
+    }
+
+    bool empty() const
+    {
+        return size() == 0;
+    }
+
+    T& operator[](const Key& key)
+    {
+        Iterator result = find(key);
+        if (result == end()) {
+            insert(key, T());
+            return find(key).ptr->Value.second;
+        }
+        return result.ptr->Value.second;
+    }
+
+    T& operator[](Key&& key)
+    {
+        Iterator result = find(key);
+        if (result == end()) {
+            insert(key, T());
+            return find(key).ptr->Value.second;
+        }
+        return result.ptr->Value.second;
+    }
+
+    T& at(const Key& key)
+    {
+        Iterator result = find(key);
+        if (result.ptr == nullptr) {
+            throw std::out_of_range("Error");
+        } else {
+            return result.ptr->Value.second;
+        }
+    }
+
+    const T & at(const Key& key) const
+    {
+        Iterator result = find(key);
+        if (result.ptr == nullptr) {
+            throw std::out_of_range("Error");
+        } else {
+            return result.ptr->Value.second;
+        }
+    }
+
+    void insert(const Key& key, const T& value)
+    {
+        if (find(key) != end()) {
+            return;
+        }
+        if ((Root->Value.first == Key()) && (Root->Value.second == T())) {
+            Root->Value.first = key;
+            Root->Value.second = value;
+            return;
+        }
+        Node * newBranch = new Node;
+        Node * newNode = nullptr;
+        Node * tmp = Root;
+        newBranch->Value.first = key;
+        newBranch->Value.second = value;
+        newBranch->Left = nullptr;
+        newBranch->Right = nullptr;
+        while (tmp != nullptr) {
+            newNode = tmp;
+            if ((newBranch->Value.first) < (tmp->Value.first)) {
+                tmp = tmp->Left;
+            } else {
+                tmp = tmp->Right;
+            }
+        }
+        newBranch->Parent = newNode;
+        if (newNode == nullptr) {
+            Root = newBranch;
+        } else {
+            if ((newBranch->Value.first) < (newNode->Value.first)) {
+                newNode->Left = newBranch;
+            } else {
+                newNode->Right = newBranch;
+            }
+        }
+    }
+
+    void insert(std::pair<Key, T> rhs)
+    {
+        Key key = rhs.first;
+        T value = rhs.second;
+        if (find(key) != end()) {
+            return;
+        }
+        if ((Root->Value.first == Key()) && (Root->Value.second == T())) {
+            Root->Value.first = key;
+            Root->Value.second = value;
+            return;
+        }
+        Node * newBranch = new Node;
+        Node * newNode = nullptr;
+        Node * tmp = Root;
+        newBranch->Value.first = key;
+        newBranch->Value.second = value;
+        newBranch->Left = nullptr;
+        newBranch->Right = nullptr;
+        while (tmp != nullptr) {
+            newNode = tmp;
+            if ((newBranch->Value.first) < (tmp->Value.first)) {
+                tmp = tmp->Left;
+            } else {
+                tmp = tmp->Right;
+            }
+        }
+        newBranch->Parent = newNode;
+        if (newNode == nullptr) {
+            Root = newBranch;
+        } else {
+            if ((newBranch->Value.first) < (newNode->Value.first)) {
+                newNode->Left = newBranch;
+            } else {
+                newNode->Right = newBranch;
+            }
+        }
+    }
+
+    void erase(Iterator it)
+    {
+        Iterator tmp = find(it->first);
+        if (tmp == end()) {
+            return;
+        }
+        if (tmp.ptr->Right == nullptr) {
+            if (tmp.ptr->Parent->Left == tmp.ptr) {
+                tmp.ptr->Parent->Left = tmp.ptr->Left;
+            } else {
+                tmp.ptr->Parent->Right = tmp.ptr->Left;
+            }
+            tmp.ptr->Left->Parent = tmp.ptr->Parent;
+            return;
+        } else if (tmp.ptr->Left == nullptr) {
+            if (tmp.ptr->Parent->Left == tmp.ptr) {
+                tmp.ptr->Parent->Left = tmp.ptr->Right;
+            } else {
+                tmp.ptr->Parent->Right = tmp.ptr->Right;
+            }
+            tmp.ptr->Right->Parent = tmp.ptr->Parent;
+            return;
+        } else {
+            if (tmp.ptr == Root) {
+                std::swap(tmp.ptr->Right->Value, Root->Value);
+                tmp.ptr = tmp.ptr->Right;
+            }
+            Node* rhs = tmp.ptr->Right;
+            while (rhs->Left != nullptr) {
+                rhs = rhs->Left;
+            }
+            tmp.ptr->Value.first = rhs->Value.first;
+            tmp.ptr->Value.second = rhs->Value.second;
+            Node* tmp1 = rhs->Parent->Left;
+            rhs->Parent->Left = nullptr;
+            delete tmp1;
+        }
+    }
+
+    void swap(map& other)
+    {
+        std::swap(Root, other.Root);
+    }
+
+    void clear()
+    {
+        delete Root->Parent;
+        Delete(Root);
+        Root = new Node;
+        Root->Parent = new Node;
+        Root->Parent->Right = Root;
+        Root->Right = nullptr;
+        Root->Left = nullptr;
+        Root->Value.first = Key();
+        Root->Value.second = T();
+    }
+
+    Iterator find(const Key& key) const
+    {
+        Node* tmp = Root;
+        while (tmp->Value.first != key) {
+            if (key < tmp->Value.first) {
+                tmp = tmp->Left;
+            } else {
+                tmp = tmp->Right;
+            }
+            if (tmp == nullptr)
+            {
+                return end();
+            }
+        }
+        iterator it(tmp);
+        return it;
+    }
+};
